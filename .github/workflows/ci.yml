@@ -23,6 +23,7 @@ jobs:
         distribution: 'temurin'
         cache: maven
         server-id: ossrh
+        # No need to change, secrets are not accessed in dry-run mode
         server-username: OSSRH_JIRA_USERNAME
         server-password: OSSRH_JIRA_PASSWORD
         gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
@@ -44,14 +45,20 @@ jobs:
       with:
         node-version: 20
 
-    - name: Semantic Release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    - name: Semantic Release (Dry Run)
+      # Trigger on PR and non-master branches for testing
+      if: github.event_name == 'push' || github.event_name == 'pull_request'
       run: |
         npm install -g @conveyal/maven-semantic-release semantic-release
-        npx semantic-release
+        # 1. Use CLI args to specify plugin chain (aligned with spring-boot-starter)
+        # 2. Add --dry-run (no actual release)
+        # 3. Add --no-ci (allow running in Fork environment)
+        semantic-release --dry-run --no-ci --prepare @conveyal/maven-semantic-release --publish @semantic-release/github,@conveyal/maven-semantic-release --verify-conditions @semantic-release/github,@conveyal/maven-semantic-release --verify-release @conveyal/maven-semantic-release
       env:
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        OSSRH_JIRA_USERNAME: ${{ secrets.OSSRH_JIRA_USERNAME }}
-        OSSRH_JIRA_PASSWORD: ${{ secrets.OSSRH_JIRA_PASSWORD }}
-
+        # Default token is sufficient for verification
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Placeholders for dry-run to prevent errors
+        GPG_KEY_NAME: "test_key"
+        GPG_PASSPHRASE: "test_pass"
+        OSSRH_JIRA_USERNAME: "test_user"
+        OSSRH_JIRA_PASSWORD: "test_pwd"
